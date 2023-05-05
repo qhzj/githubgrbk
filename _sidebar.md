@@ -12,3 +12,7 @@
 * 后端
 * 命令大全
   * [cmd命令](/命令大全/cmd命令.md)
+* 其他
+  * minio
+    * 笔记
+      * [minio](/其他/minio/笔记/minio.md)
