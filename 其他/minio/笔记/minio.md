@@ -35,15 +35,278 @@ Set：即一组 Drive的集合，分布式部署根据集群规模自动划分�
 
 
 
+# 安装
+
+
+
+## Windows环境
+
+### 1：minio文件下载
+
+下载地址：https://dl.min.io/server/minio/release/windows-amd64/minio.ex
+
+
+
+### 2：创建目录
+
+与minin.exe同级创建data目录
+
+![image-20230517095727307](minio.assets/image-20230517095727307.png)
+
+
+
+### 3：启动
+
+在minio.exe目录下使用cmd命令
+
+```
+-- minio.exe server data的路径（相对路径决定路径都可以）
+minio.exe server D:\develop\software\minio\data
+或者
+minio.exe server data
+```
+
+
+
+![image-20230517095937236](minio.assets/image-20230517095937236.png)
+
+红字表明：警告：说你使用的是默认的，建议你可以修改
+
+
+
+### 4：访问
+
+访问地址：http://127.0.0.1:9000
+
+根据打印日志来
 
 
 
 
-# 操作
 
 
 
-## 判断桶是否存在
+
+
+
+
+
+
+## Linux环境
+
+
+
+### 1：创建目录
+
+```
+mkdir /home/minio
+mkdir /home/minio/data
+```
+
+
+
+### 2：下载安装包
+
+切换到/home/minio路径下
+
+```
+wget https://dl.min.io/server/minio/release/linux-amd64/minio
+```
+
+或者可以直接点击链接下载到本地，在拖动上传到/home/minio路径下
+
+下载地址：https://dl.min.io/server/minio/release/linux-amd64/minio
+
+
+
+### 3：赋予下载下来的minio文件权限
+
+```shell
+-- 给指定文件赋予权限 x为执行权限
+chmod +x minio
+```
+
+这一步需要切换到/home/minio路径下，
+
+注意：是给下载下来的minio文件赋予权限，而不是给创建的minio文件夹赋予权限
+
+
+
+### 4：启动
+
+```shell
+./minio server /home/minio/data
+```
+
+这一步也要在/home/minio目录下
+
+
+
+### 5：启动后打印
+
+* 一些连接信息
+
+![image-20230512160516435](minio.assets/image-20230512160516435.png)
+
+
+
+### 6：添加映射
+
+如果出现下列的打印，就是需要添加映射
+
+![img](minio.assets/b9e81f41c04a44ba8cd64d6bc2ad7db1.png)
+
+
+
+```
+./minio server --console-address '0.0.0.0:9999'  /home/minio/data
+ 
+nohup ./minio server --console-address '0.0.0.0:9999'  /home/minio/data &  #后台启动
+```
+
+![img](minio.assets/9138a92c5ba043a6b6e8c7d6e388f1f6.png)
+
+
+
+### 7：修改密码
+
+警告说的是建议修改账号密码 默认账号密码为minioadmin端口为9000
+
+```
+export MINIO_ACCESS_KEY=XXXXXX
+export MINIO_SECRET_KEY=XXXXXX
+```
+
+
+
+### 8：开放端口
+
+这一步根据打印出来的端口信息进行更改，
+
+```shell
+-- 打开9000端口
+firewall-cmd --zone=public --add-port=9000/tcp --permanent
+-- 打开9999端口
+firewall-cmd --zone=public --add-port=9999/tcp --permanent
+ -- 防火墙重载
+firewall-cmd --reload
+```
+
+
+
+### 9：访问
+
+![image-20230512161637734](minio.assets/image-20230512161637734.png)
+
+
+
+### 10：过程遇到的问题
+
+
+
+# Java Clinet
+
+## 依赖
+
+```xml
+    <dependencies>
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+            <version>8.4.6</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.squareup.okhttp3</groupId>
+                    <artifactId>okhttp</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+            <version>4.9.0</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>me.tongfei</groupId>
+            <artifactId>progressbar</artifactId>
+            <version>0.5.3</version>
+        </dependency>
+    </dependencies>
+
+
+```
+
+
+
+## 配置文件
+
+```yml
+minio:
+  endPoint: http://127.0.0.1:9000
+  accessKey: minioadmin
+  secretKey: minioadmin
+  bucket: work
+```
+
+
+
+
+
+```java
+package com.zbf.bean;
+
+import lombok.Data;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
+
+@Data
+@Component
+@ConfigurationProperties(prefix = "minio")
+public class MinioProperties {
+
+    private String endPoint;
+    private String accessKey;
+    private String secretKey;
+}
+
+```
+
+
+
+```java
+package com.zbf.config;
+
+import com.zbf.bean.MinioProperties;
+import io.minio.MinioClient;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class MinioConfig {
+
+    @Autowired(required = false)
+    public MinioProperties minioProperties;
+
+    @Bean
+    public MinioClient getMinioClient(){
+
+        MinioClient build = MinioClient.builder().endpoint(minioProperties.getEndPoint())
+                .credentials(minioProperties.getAccessKey(), minioProperties.getSecretKey()).build();
+        return build;
+    }
+}
+
+```
+
+
+
+## Java操作
+
+
+
+### 判断桶是否存在
 
 ```java
 public static boolean judgmentBucketExist(String bucket){
@@ -54,7 +317,6 @@ public static boolean judgmentBucketExist(String bucket){
         } catch (Exception e) {
             e.printStackTrace();
         }
-
         return b;
     }
 ```
@@ -63,7 +325,7 @@ public static boolean judgmentBucketExist(String bucket){
 
 
 
-## 获取存储桶的信息列表
+### 获取存储桶的信息列表
 
 ```java
 public static List<Bucket> getBuckets(){
@@ -81,11 +343,11 @@ public static List<Bucket> getBuckets(){
 }
 ```
 
+![image-20230517101449757](minio.assets/image-20230517101449757.png)
 
 
 
-
-## 获取预览url
+### 获取预览url
 
 ```java 
 Map<String, String> reqParams = new HashMap<String, String>();
@@ -111,7 +373,7 @@ System.out.println(url);
 
 
 
-## 下载文件对象
+### 下载文件对象
 
 ```java
 minioClient.downloadObject(
@@ -129,7 +391,7 @@ minioClient.downloadObject(
 
 
 
-## 上传文件对象
+### 上传文件对象
 
 > 将文件中的内容作为存储桶中的对象上传
 
@@ -153,7 +415,7 @@ minioClient.uploadObject(
 
 
 
-## 将给定流作为存储桶中的对象上传
+### 将给定流作为存储桶中的对象上传
 
 > 将给定的流作为存储桶中的对象上传
 
@@ -185,7 +447,7 @@ minioClient.uploadObject(
 
 
 
-## 删除对象
+### 删除对象
 
 ```Java
 minioClient.removeObject(
@@ -196,7 +458,7 @@ minioClient.removeObject(
 
 
 
-## 获取对象的对象信息和元数据
+### 获取对象的对象信息和元数据
 
 ```java
 //返回的数据，桶名称，文件名称，最后修改的时间，文件大小
@@ -218,7 +480,7 @@ StatObjectResponse statObjectResponse = minioClient.statObject(
 
 
 
-## 文档路径
+# 文档路径
 
 [Java Client API Reference — MinIO Object Storage for Linux](https://min.io/docs/minio/linux/developers/java/API.html)
 
